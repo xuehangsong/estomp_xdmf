@@ -7,12 +7,12 @@ import math
 import glob
 from xml.etree import ElementTree as ET
 from xml.dom import minidom
-from datetime import datetime, timedelta
+# from datetime import datetime, timedelta
 
 
-def collect_grids():
-    input_file = open(simu_dir + "input", "r")
-    print("hello world")
+# def collect_grids():
+#     input_file = open(simu_dir + "input", "r")
+#     print("hello world")
 
 
 def prettify(element):
@@ -58,7 +58,7 @@ def retrieve_grids(simu_dir):
     grid_line = [i for i, s in enumerate(estomp_input) if "~Grid" in s][0]
 
     if "Cartesian" in estomp_input[grid_line + 1]:
-        print("Catesian grids")
+        print("Cartesian grids")
     else:
         sys.exit("Unfortunately, this scripts only can deal with cartesian grids")
 
@@ -66,7 +66,9 @@ def retrieve_grids(simu_dir):
     nx, ny, nz = map(int, re.split('[, ]', estomp_input[grid_line + 2])[0:3])
     grid_value = []
     iline = 3
+    cell_surface_flag = 0
     # loop lines of etomp inputs until have enough entry for grids
+    # while estomp_input[grid_line + iline][0] != "~":    
     while len(grid_value) < (1 + nx + 1 + ny + 1 + nz):
         line_data = estomp_input[grid_line + iline].split(",")
         ndata = int(math.floor(len(line_data) / 2))
@@ -76,24 +78,39 @@ def retrieve_grids(simu_dir):
                 grid_value += [float(temp_d) *
                                length_conversion(line_data[idata * 2 + 1])] * int(temp_n)
             else:
+                cell_surface_flag = 1                
                 grid_value += [float(line_data[idata * 2]) *
                                length_conversion(line_data[idata * 2 + 1])]
         iline += 1
 
-    # assign flatten grids values to x, y, z
-    xo = grid_value[0]
-    dx = np.asarray(grid_value[1:1 + nx])
-    yo = grid_value[1 + nx]
-    dy = np.asarray(grid_value[1 + nx + 1:1 + nx + 1 + ny])
-    zo = grid_value[1 + nx + 1 + ny]
-    dz = np.asarray(
-        grid_value[1 + nx + 1 + ny + 1:1 + nx + 1 + ny + 1 + nz])
-    x = xo + np.cumsum(dx) - 0.5 * dx
-    y = yo + np.cumsum(dy) - 0.5 * dy
-    z = zo + np.cumsum(dz) - 0.5 * dz
-    xe = xo + sum(dx)
-    ye = yo + sum(dy)
-    ze = zo + sum(dz)
+    # assign flatten grids values to x, y, z        
+    if cell_surface_flag == 0:
+        xo = grid_value[0]
+        dx = np.asarray(grid_value[1:1 + nx])
+        yo = grid_value[1 + nx]
+        dy = np.asarray(grid_value[1 + nx + 1:1 + nx + 1 + ny])
+        zo = grid_value[1 + nx + 1 + ny]
+        dz = np.asarray(
+            grid_value[1 + nx + 1 + ny + 1:1 + nx + 1 + ny + 1 + nz])
+        x = xo + np.cumsum(dx) - 0.5 * dx
+        y = yo + np.cumsum(dy) - 0.5 * dy
+        z = zo + np.cumsum(dz) - 0.5 * dz
+        xe = xo + sum(dx)
+        ye = yo + sum(dy)
+        ze = zo + sum(dz)
+    else:
+        xo = grid_value[0]
+        xe = grid_value[nx]
+        dx = np.diff(grid_value[0:(nx+1)])
+        yo = grid_value[nx+1]
+        ye = grid_value[nx+1+ny]
+        dy = np.diff(grid_value[nx+1:(nx+1+ny+1)])        
+        zo = grid_value[nx+1+ny+1]
+        ze = grid_value[nx+1+ny+1+nz]
+        dz = np.diff(grid_value[nx+1+ny+1:(nx+1+ny+1+nz+1)])
+        x = xo + np.cumsum(dx) - 0.5 * dx
+        y = yo + np.cumsum(dy) - 0.5 * dy
+        z = zo + np.cumsum(dz) - 0.5 * dz
     print("Grid retrived from eSTOMP input")
     return xo, yo, zo, xe, ye, ze, dx, dy, dz, nx, ny, nz, x, y, z
 
@@ -135,6 +152,7 @@ def retrieve_variable_time(simu_dir, time_unit):
 # if __name__ == '__main__':
 simu_dir = "/Users/song884/Dropbox/DVZ/WMAC/test_paraview/s7_1a/2018/"
 simu_dir = "/home/xhsong/Dropbox/DVZ/WMAC/test_paraview/s7_1a/2018/"
+simu_dir = '/pic/scratch/song884/bcomplex/model/'
 time_unit = "yr"
 xo, yo, zo, xe, ye, ze, dx, dy, dz, nx, ny, nz, x, y, z = retrieve_grids(
     simu_dir)
