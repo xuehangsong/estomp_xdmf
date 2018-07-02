@@ -69,7 +69,7 @@ def retrieve_grids(simu_dir):
     # loop lines of etomp inputs until have enough entry for grids
     while len(grid_value) < (1 + nx + 1 + ny + 1 + nz):
         line_data = estomp_input[grid_line + iline].split(",")
-        ndata = math.floor(len(line_data) / 2)
+        ndata = int(math.floor(len(line_data) / 2))
         for idata in range(ndata):
             if ("@" in line_data[idata * 2]):
                 temp_n, temp_d = line_data[idata * 2].split("@")
@@ -102,9 +102,13 @@ def retrieve_grids(simu_dir):
 def retrieve_variable_time(simu_dir, time_unit):
     all_h5 = np.sort(glob.glob(simu_dir + "plot*h5block"))
     plot_h5 = h5.File(all_h5[0], "r")
-    varis = [x.split("::")[0]
+    varis = list(plot_h5['Step#0']['Block'])
+    varis_with_units = [x.split("::")[0]
              for x in list(plot_h5.attrs.keys()) if "units" in x]
-    units = [plot_h5.attrs[x + "::units"].decode("UTF-8") for x in varis]
+    units = {}
+    for ivari in varis_with_units:
+        print(ivari)
+        units[ivari] = plot_h5.attrs[ivari + "::units"].decode("UTF-8")
     plot_h5.close()
     times = []
     for i_h5 in all_h5:
@@ -130,6 +134,7 @@ def retrieve_variable_time(simu_dir, time_unit):
 
 # if __name__ == '__main__':
 simu_dir = "/Users/song884/Dropbox/DVZ/WMAC/test_paraview/s7_1a/2018/"
+simu_dir = "/home/xhsong/Dropbox/DVZ/WMAC/test_paraview/s7_1a/2018/"
 time_unit = "yr"
 xo, yo, zo, xe, ye, ze, dx, dy, dz, nx, ny, nz, x, y, z = retrieve_grids(
     simu_dir)
