@@ -1,4 +1,15 @@
-# this scripts only deal sturtured grid for now
+# SUMMARY:      estomp_xdmf.py
+# USAGE:        Generate XDMF file for eSTOMP h5block output
+# ORG:          Pacific Northwest National Laboratory
+# AUTHOR:       Xuehang Song
+# E-MAIL:       xuehang.song@pnnl.gov
+# ORIG-DATE:    Jun-2018
+# DESCRIPTION:  
+# DESCRIP-END.
+# COMMENTS:     only deal cartesian sturtured grids
+#
+# Last Change: 2018-07-02
+
 import h5py as h5
 import numpy as np
 import re
@@ -7,14 +18,9 @@ import math
 import glob
 from xml.etree import ElementTree as ET
 from xml.dom import minidom
-# from datetime import datetime, timedelta
 
 
-# def collect_grids():
-#     input_file = open(simu_dir + "input", "r")
-#     print("hello world")
-
-
+# format XDMF outputs
 def prettify(element):
     """Return a pretty-printed XML string for the Element.
     """
@@ -22,9 +28,8 @@ def prettify(element):
     reparsed = minidom.parseString(rough_string)
     return reparsed.toprettyxml(indent="  ")
 
+
 # convert length units to m
-
-
 def length_conversion(x):
     return {
         'a': 1e-10,
@@ -44,6 +49,7 @@ def length_conversion(x):
     }.get(x, 1)
 
 
+# read grid information from eSTOMP input
 def retrieve_grids(simu_dir):
     # read raw input deck
     input_file = open(simu_dir + "input", "r")
@@ -60,8 +66,9 @@ def retrieve_grids(simu_dir):
     if "Cartesian" in estomp_input[grid_line + 1]:
         print("Cartesian grids")
     else:
-        sys.exit("Unfortunately, this scripts only can deal with cartesian grids")
+        sys.exit("Unfortunately, this scripts only can deal with cartesian grids" )
 
+        
     # read nx, ny, nz
     nx, ny, nz = map(int, re.split('[, ]', estomp_input[grid_line + 2])[0:3])
     grid_value = []
@@ -120,8 +127,7 @@ def retrieve_variable_time(simu_dir, time_unit):
     all_h5 = np.sort(glob.glob(simu_dir + "plot*h5block"))
     plot_h5 = h5.File(all_h5[0], "r")
     varis = list(plot_h5['Step#0']['Block'])
-    varis_with_units = [x.split("::")[0]
-             for x in list(plot_h5.attrs.keys()) if "units" in x]
+    varis_with_units = [x.split("::")[0] for x in list(plot_h5.attrs.keys()) if "units" in x]
     units = {}
     for ivari in varis_with_units:
         print(ivari)
@@ -153,6 +159,7 @@ def retrieve_variable_time(simu_dir, time_unit):
 simu_dir = "/Users/song884/Dropbox/DVZ/WMAC/test_paraview/s7_1a/2018/"
 simu_dir = "/home/xhsong/Dropbox/DVZ/WMAC/test_paraview/s7_1a/2018/"
 simu_dir = '/pic/scratch/song884/bcomplex/model/'
+#simu_dir = '/pic/scratch/song884/bcomplex/model_i8/'
 time_unit = "yr"
 xo, yo, zo, xe, ye, ze, dx, dy, dz, nx, ny, nz, x, y, z = retrieve_grids(
     simu_dir)
@@ -173,19 +180,19 @@ xml_geometry = ET.SubElement(xml_domain, 'Geometry',
 xml_geometry_x = ET.SubElement(xml_geometry, 'DataItem',
                                {'Dimensions': str(nx),
                                 "NumberType": "Float",
-                                "Precision": "4",
+                                "Precision": "8",
                                 "Format": "XML"})
 xml_geometry_x.text = np.array_str(x).strip("[]").replace("\n", " ")
 xml_geometry_y = ET.SubElement(xml_geometry, 'DataItem',
                                {'Dimensions': str(ny),
                                 "NumberType": "Float",
-                                "Precision": "4",
+                                "Precision": "8",
                                 "Format": "XML"})
 xml_geometry_y.text = np.array_str(y).strip("[]").replace("\n", " ")
 xml_geometry_z = ET.SubElement(xml_geometry, 'DataItem',
                                {'Dimensions': str(nz),
                                 "NumberType": "Float",
-                                "Precision": "4",
+                                "Precision": "8",
                                 "Format": "XML"})
 xml_geometry_z.text = np.array_str(z).strip("[]").replace("\n", " ")
 
@@ -222,7 +229,7 @@ for itime in range(ntime):
             scalar_data_handle[iscalar] = ET.SubElement(scalar_handle[iscalar], "DataItem",
                                                         {"Format": "HDF",
                                                          "NumberType": "Float",
-                                                         "Precision": "4",
+                                                         "Precision": "8",
                                                          "Dimensions": "{0} {1} {2}".format(nz, ny, nx)})
             scalar_data_handle[iscalar].text = all_h5[itime].split("/")[-1] + \
                 ":/Step#0/Block/" + scalars[iscalar] + "/0"
@@ -236,12 +243,12 @@ for itime in range(ntime):
                                       {"ItemType": "Function",
                                        "Function": "JOIN($0, $1, $2)",
                                        "NumberType": "Float",
-                                       "Precision": "4",
+                                       "Precision": "8",
                                        "Dimensions": "{0} {1} {2} {3}".format(nz, ny, nx, 3)})
         velocity_x = ET.SubElement(velocity, "DataItem",
                                    {"Format": "HDF",
                                     "NumberType": "Float",
-                                    "Precision": "4",
+                                    "Precision": "8",
                                     "Dimensions": "{0} {1} {2}".format(nz, ny, nx)})
         velocity_x.text = all_h5[itime].split("/")[-1] + \
             ":/Step#0/Block/" + \
@@ -249,7 +256,7 @@ for itime in range(ntime):
         velocity_y = ET.SubElement(velocity, "DataItem",
                                    {"Format": "HDF",
                                     "NumberType": "Float",
-                                    "Precision": "4",
+                                    "Precision": "8",
                                     "Dimensions": "{0} {1} {2}".format(nz, ny, nx)})
         velocity_y.text = all_h5[itime].split("/")[-1] + \
             ":/Step#0/Block/" + \
@@ -257,7 +264,7 @@ for itime in range(ntime):
         velocity_z = ET.SubElement(velocity, "DataItem",
                                    {"Format": "HDF",
                                     "NumberType": "Float",
-                                    "Precision": "4",
+                                    "Precision": "8",
                                     "Dimensions": "{0} {1} {2}".format(nz, ny, nx)})
         velocity_z.text = all_h5[itime].split("/")[-1] + \
             ":/Step#0/Block/" + \
