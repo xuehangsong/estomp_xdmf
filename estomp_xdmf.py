@@ -57,20 +57,19 @@ def retrieve_grids(simu_dir):
     input_file.close()
 
     # remove comments and blank lines in input deck
-    estomp_input = [re.split('[# ! \n]', x)[0] for x in estomp_input]
+    estomp_input = [re.split('[#!\n]', x)[0] for x in estomp_input]
     estomp_input = [x for x in estomp_input if x]
 
     # locate start of grid card
     grid_line = [i for i, s in enumerate(estomp_input) if "~Grid" in s][0]
 
-    if "Cartesian" in estomp_input[grid_line + 1]:
+    if "cartesian" in estomp_input[grid_line + 1].lower():
         print("Cartesian grids")
     else:
-        sys.exit("Unfortunately, this scripts only can deal with cartesian grids" )
-
+        sys.exit("Unfortunately, this scripts only can deal with cartesian grids")
         
     # read nx, ny, nz
-    nx, ny, nz = map(int, re.split('[, ]', estomp_input[grid_line + 2])[0:3])
+    nx, ny, nz = map(int, re.split('[,]', estomp_input[grid_line + 2])[0:3])
     grid_value = []
     iline = 3
     cell_surface_flag = 0
@@ -159,7 +158,8 @@ def retrieve_variable_time(simu_dir, time_unit):
 simu_dir = "/Users/song884/Dropbox/DVZ/WMAC/test_paraview/s7_1a/2018/"
 simu_dir = "/home/xhsong/Dropbox/DVZ/WMAC/test_paraview/s7_1a/2018/"
 simu_dir = '/pic/scratch/song884/bcomplex/model/'
-#simu_dir = '/pic/scratch/song884/bcomplex/model_i8/'
+simu_dir = '/people/song884/wmac/fy18/fine_model/upr/base_ss/'
+
 time_unit = "yr"
 xo, yo, zo, xe, ye, ze, dx, dy, dz, nx, ny, nz, x, y, z = retrieve_grids(
     simu_dir)
