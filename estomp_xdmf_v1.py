@@ -1,4 +1,15 @@
-# this scripts only deal sturtured grid for now
+# SUMMARY:      estomp_xdmf.py
+# USAGE:        Generate XDMF file for eSTOMP h5block output
+# ORG:          Pacific Northwest National Laboratory
+# AUTHOR:       Xuehang Song
+# E-MAIL:       xuehang.song@pnnl.gov
+# ORIG-DATE:    Jun-2018
+# DESCRIPTION:  
+# DESCRIP-END.
+# COMMENTS:     only deal cartesian sturtured grids
+#
+# Last Change: 2018-07-02
+
 import h5py as h5
 import numpy as np
 import re
@@ -7,14 +18,9 @@ import math
 import glob
 from xml.etree import ElementTree as ET
 from xml.dom import minidom
-from datetime import datetime, timedelta
 
 
-def collect_grids():
-    input_file = open(simu_dir + "input", "r")
-    print("hello world")
-
-
+# format XDMF outputs
 def prettify(element):
     """Return a pretty-printed XML string for the Element.
     """
@@ -22,9 +28,8 @@ def prettify(element):
     reparsed = minidom.parseString(rough_string)
     return reparsed.toprettyxml(indent="  ")
 
+
 # convert length units to m
-
-
 def length_conversion(x):
     return {
         'a': 1e-10,
@@ -44,6 +49,7 @@ def length_conversion(x):
     }.get(x, 1)
 
 
+# read grid information from eSTOMP input
 def retrieve_grids(simu_dir):
     # read raw input deck
     input_file = open(simu_dir + "input", "r")
@@ -51,27 +57,30 @@ def retrieve_grids(simu_dir):
     input_file.close()
 
     # remove comments and blank lines in input deck
-    estomp_input = [re.split('[# ! \n]', x)[0] for x in estomp_input]
+    estomp_input = [re.split('[#!\n]', x)[0] for x in estomp_input]
     estomp_input = [x for x in estomp_input if x]
 
     # locate start of grid card
     grid_line = [i for i, s in enumerate(estomp_input) if "~Grid" in s][0]
 
-    if "Cartesian" in estomp_input[grid_line + 1]:
-        print("Catesian grids")
+    if "cartesian" in estomp_input[grid_line + 1].lower():
+        print("Cartesian grids")
     else:
         sys.exit("Unfortunately, this scripts only can deal with cartesian grids")
-
+        
     # read nx, ny, nz
-    nx, ny, nz = map(int, re.split('[, ]', estomp_input[grid_line + 2])[0:3])
+    nx, ny, nz = map(int, re.split('[,]', estomp_input[grid_line + 2])[0:3])
     grid_value = []
     iline = 3
+    d_flag = 0
     # loop lines of etomp inputs until have enough entry for grids
+    # while estomp_input[grid_line + iline][0] != "~":    
     while len(grid_value) < (1 + nx + 1 + ny + 1 + nz):
         line_data = estomp_input[grid_line + iline].split(",")
-        ndata = math.floor(len(line_data) / 2)
+        ndata = int(math.floor(len(line_data) / 2))
         for idata in range(ndata):
             if ("@" in line_data[idata * 2]):
+                d_flag = 1
                 temp_n, temp_d = line_data[idata * 2].split("@")
                 grid_value += [float(temp_d) *
                                length_conversion(line_data[idata * 2 + 1])] * int(temp_n)
@@ -80,20 +89,34 @@ def retrieve_grids(simu_dir):
                                length_conversion(line_data[idata * 2 + 1])]
         iline += 1
 
-    # assign flatten grids values to x, y, z
-    xo = grid_value[0]
-    dx = np.asarray(grid_value[1:1 + nx])
-    yo = grid_value[1 + nx]
-    dy = np.asarray(grid_value[1 + nx + 1:1 + nx + 1 + ny])
-    zo = grid_value[1 + nx + 1 + ny]
-    dz = np.asarray(
-        grid_value[1 + nx + 1 + ny + 1:1 + nx + 1 + ny + 1 + nz])
-    x = xo + np.cumsum(dx) - 0.5 * dx
-    y = yo + np.cumsum(dy) - 0.5 * dy
-    z = zo + np.cumsum(dz) - 0.5 * dz
-    xe = xo + sum(dx)
-    ye = yo + sum(dy)
-    ze = zo + sum(dz)
+    # assign flatten grids values to x, y, z        
+    if d_flag == 1:
+        xo = grid_value[0]
+        dx = np.asarray(grid_value[1:1 + nx])
+        yo = grid_value[1 + nx]
+        dy = np.asarray(grid_value[1 + nx + 1:1 + nx + 1 + ny])
+        zo = grid_value[1 + nx + 1 + ny]
+        dz = np.asarray(
+            grid_value[1 + nx + 1 + ny + 1:1 + nx + 1 + ny + 1 + nz])
+        x = xo + np.cumsum(dx) - 0.5 * dx
+        y = yo + np.cumsum(dy) - 0.5 * dy
+        z = zo + np.cumsum(dz) - 0.5 * dz
+        xe = xo + sum(dx)
+        ye = yo + sum(dy)
+        ze = zo + sum(dz)
+    else:
+        xo = grid_value[0]
+        xe = grid_value[nx]
+        dx = np.diff(grid_value[0:(nx+1)])
+        yo = grid_value[nx+1]
+        ye = grid_value[nx+1+ny]
+        dy = np.diff(grid_value[nx+1:(nx+1+ny+1)])        
+        zo = grid_value[nx+1+ny+1]
+        ze = grid_value[nx+1+ny+1+nz]
+        dz = np.diff(grid_value[nx+1+ny+1:(nx+1+ny+1+nz+1)])
+        x = xo + np.cumsum(dx) - 0.5 * dx
+        y = yo + np.cumsum(dy) - 0.5 * dy
+        z = zo + np.cumsum(dz) - 0.5 * dz
     print("Grid retrived from eSTOMP input")
     return xo, yo, zo, xe, ye, ze, dx, dy, dz, nx, ny, nz, x, y, z
 
@@ -102,9 +125,12 @@ def retrieve_grids(simu_dir):
 def retrieve_variable_time(simu_dir, time_unit):
     all_h5 = np.sort(glob.glob(simu_dir + "plot*h5block"))
     plot_h5 = h5.File(all_h5[0], "r")
-    varis = [x.split("::")[0]
-             for x in list(plot_h5.attrs.keys()) if "units" in x]
-    units = [plot_h5.attrs[x + "::units"].decode("UTF-8") for x in varis]
+    varis = list(plot_h5['Step#0']['Block'])
+    varis_with_units = [x.split("::")[0] for x in list(plot_h5.attrs.keys()) if "units" in x]
+    units = {}
+    for ivari in varis_with_units:
+        print(ivari)
+        units[ivari] = plot_h5.attrs[ivari + "::units"].decode("UTF-8")
     plot_h5.close()
     times = []
     for i_h5 in all_h5:
@@ -129,7 +155,14 @@ def retrieve_variable_time(simu_dir, time_unit):
 
 
 # if __name__ == '__main__':
-simu_dir = "/Users/song884/test_hdf5/s7_1a/2018/"
+simu_dir = "/Users/song884/Dropbox/DVZ/WMAC/test_paraview/s7_1a/2018/"
+simu_dir = "/home/xhsong/Dropbox/DVZ/WMAC/test_paraview/s7_1a/2018/"
+simu_dir = '/pic/scratch/song884/bcomplex/model/'
+simu_dir = '/people/song884/wmac/fy18/fine_model/upr/base_ss/'
+simu_dir = '/pic/scratch/song884/dust/fy2018/by_5a/ss_material/'
+simu_dir = '/pic/scratch/song884/dust/fy2018/by_6a/2018_test/'
+simu_dir = "./"
+
 time_unit = "yr"
 xo, yo, zo, xe, ye, ze, dx, dy, dz, nx, ny, nz, x, y, z = retrieve_grids(
     simu_dir)
@@ -212,6 +245,7 @@ for itime in range(ntime):
         velocity_data = ET.SubElement(velocity, "DataItem",
                                       {"ItemType": "Function",
                                        "Function": "JOIN($0, $1, $2)",
+                                       "NumberType": "Float",
                                        "Precision": "8",
                                        "Dimensions": "{0} {1} {2} {3}".format(nz, ny, nx, 3)})
         velocity_x = ET.SubElement(velocity, "DataItem",

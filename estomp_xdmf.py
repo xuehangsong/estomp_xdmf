@@ -1,10 +1,11 @@
+
 # SUMMARY:      estomp_xdmf.py
 # USAGE:        Generate XDMF file for eSTOMP h5block output
 # ORG:          Pacific Northwest National Laboratory
 # AUTHOR:       Xuehang Song
 # E-MAIL:       xuehang.song@pnnl.gov
 # ORIG-DATE:    Jun-2018
-# DESCRIPTION:  
+# DESCRIPTION:
 # DESCRIP-END.
 # COMMENTS:     only deal cartesian sturtured grids
 #
@@ -67,30 +68,30 @@ def retrieve_grids(simu_dir):
         print("Cartesian grids")
     else:
         sys.exit("Unfortunately, this scripts only can deal with cartesian grids")
-        
+
     # read nx, ny, nz
     nx, ny, nz = map(int, re.split('[,]', estomp_input[grid_line + 2])[0:3])
     grid_value = []
     iline = 3
-    cell_surface_flag = 0
+    d_flag = 0
     # loop lines of etomp inputs until have enough entry for grids
-    # while estomp_input[grid_line + iline][0] != "~":    
+    # while estomp_input[grid_line + iline][0] != "~":
     while len(grid_value) < (1 + nx + 1 + ny + 1 + nz):
         line_data = estomp_input[grid_line + iline].split(",")
         ndata = int(math.floor(len(line_data) / 2))
         for idata in range(ndata):
             if ("@" in line_data[idata * 2]):
+                d_flag = 1
                 temp_n, temp_d = line_data[idata * 2].split("@")
                 grid_value += [float(temp_d) *
                                length_conversion(line_data[idata * 2 + 1])] * int(temp_n)
             else:
-                cell_surface_flag = 1                
                 grid_value += [float(line_data[idata * 2]) *
                                length_conversion(line_data[idata * 2 + 1])]
         iline += 1
 
-    # assign flatten grids values to x, y, z        
-    if cell_surface_flag == 0:
+    # assign flatten grids values to x, y, z
+    if d_flag == 1:
         xo = grid_value[0]
         dx = np.asarray(grid_value[1:1 + nx])
         yo = grid_value[1 + nx]
@@ -110,7 +111,7 @@ def retrieve_grids(simu_dir):
         dx = np.diff(grid_value[0:(nx+1)])
         yo = grid_value[nx+1]
         ye = grid_value[nx+1+ny]
-        dy = np.diff(grid_value[nx+1:(nx+1+ny+1)])        
+        dy = np.diff(grid_value[nx+1:(nx+1+ny+1)])
         zo = grid_value[nx+1+ny+1]
         ze = grid_value[nx+1+ny+1+nz]
         dz = np.diff(grid_value[nx+1+ny+1:(nx+1+ny+1+nz+1)])
@@ -126,7 +127,8 @@ def retrieve_variable_time(simu_dir, time_unit):
     all_h5 = np.sort(glob.glob(simu_dir + "plot*h5block"))
     plot_h5 = h5.File(all_h5[0], "r")
     varis = list(plot_h5['Step#0']['Block'])
-    varis_with_units = [x.split("::")[0] for x in list(plot_h5.attrs.keys()) if "units" in x]
+    varis_with_units = [x.split("::")[0] for x in list(
+        plot_h5.attrs.keys()) if "units" in x]
     units = {}
     for ivari in varis_with_units:
         print(ivari)
@@ -159,6 +161,9 @@ simu_dir = "/Users/song884/Dropbox/DVZ/WMAC/test_paraview/s7_1a/2018/"
 simu_dir = "/home/xhsong/Dropbox/DVZ/WMAC/test_paraview/s7_1a/2018/"
 simu_dir = '/pic/scratch/song884/bcomplex/model/'
 simu_dir = '/people/song884/wmac/fy18/fine_model/upr/base_ss/'
+simu_dir = '/pic/scratch/song884/dust/fy2018/by_5a/ss_material/'
+simu_dir = '/pic/scratch/song884/dust/fy2018/by_6a/2018_test/'
+simu_dir = "./"
 
 time_unit = "yr"
 xo, yo, zo, xe, ye, ze, dx, dy, dz, nx, ny, nz, x, y, z = retrieve_grids(
@@ -245,7 +250,7 @@ for itime in range(ntime):
                                        "NumberType": "Float",
                                        "Precision": "8",
                                        "Dimensions": "{0} {1} {2} {3}".format(nz, ny, nx, 3)})
-        velocity_x = ET.SubElement(velocity, "DataItem",
+        velocity_x = ET.SubElement(velocity_data, "DataItem",
                                    {"Format": "HDF",
                                     "NumberType": "Float",
                                     "Precision": "8",
@@ -253,7 +258,7 @@ for itime in range(ntime):
         velocity_x.text = all_h5[itime].split("/")[-1] + \
             ":/Step#0/Block/" + \
             'X-Dir. Aqueous Darcy Velocity (Node Centered)' + "/0"
-        velocity_y = ET.SubElement(velocity, "DataItem",
+        velocity_y = ET.SubElement(velocity_data, "DataItem",
                                    {"Format": "HDF",
                                     "NumberType": "Float",
                                     "Precision": "8",
@@ -261,7 +266,7 @@ for itime in range(ntime):
         velocity_y.text = all_h5[itime].split("/")[-1] + \
             ":/Step#0/Block/" + \
             'Y-Dir. Aqueous Darcy Velocity (Node Centered)' + "/0"
-        velocity_z = ET.SubElement(velocity, "DataItem",
+        velocity_z = ET.SubElement(velocity_data, "DataItem",
                                    {"Format": "HDF",
                                     "NumberType": "Float",
                                     "Precision": "8",
